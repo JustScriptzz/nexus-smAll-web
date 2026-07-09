@@ -154,9 +154,11 @@ def load_model():
     config = NexusConfig()
     model = Nexus(config)
 
-    weights_path = hf_hub_download(repo_id=REPO, filename="weights/nexus_instruct_int8.pt")
+    weights_path = hf_hub_download(repo_id=REPO, filename="weights/nexus_instruct.pt")
     checkpoint = torch.load(weights_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model_state_dict"])
+
+    model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
     model.eval()
 
     tokenizer_path = hf_hub_download(repo_id=REPO, filename="data/tokenizer.json")
