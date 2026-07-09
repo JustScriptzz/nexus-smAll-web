@@ -88,6 +88,8 @@ if prompt := st.chat_input("Type a message..."):
 
     new_ids = input_tensor[0].tolist()[len(tokens):]
     response = tokenizer.decode(new_ids)
+    for tok in ["<|assistant|>", "<|user|>", "<|system|>"]:
+        response = response.replace(tok, "")
     response = response.split("<eos>")[0].split("User:")[0].replace("Assistant:", "").strip()
 
     if len(response) < 2:
