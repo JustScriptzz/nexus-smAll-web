@@ -6,110 +6,50 @@
 <title>Nexus SmAll v1</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 * { font-family: 'Inter', sans-serif; }
-.chat-container { scroll-behavior: smooth; }
-.chat-container::-webkit-scrollbar { width: 6px; }
-.chat-container::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
-.chat-container::-webkit-scrollbar-track { background: transparent; }
-.typing-dot { animation: pulse 1.4s infinite; }
-.typing-dot:nth-child(2) { animation-delay: 0.2s; }
-.typing-dot:nth-child(3) { animation-delay: 0.4s; }
-@keyframes pulse { 0%, 60%, 100% { opacity: 0.3; } 30% { opacity: 1; } }
 </style>
 </head>
-<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col">
-  <header class="border-b border-gray-800 p-4 flex items-center justify-between">
-    <div>
-      <h1 class="text-lg font-semibold">Nexus <span class="text-purple-400">SmAll v1</span></h1>
-      <p class="text-xs text-gray-500">89.8M parameter transformer from scratch</p>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col items-center justify-center p-6">
+  <div class="max-w-lg text-center space-y-6">
+    <div class="space-y-2">
+      <h1 class="text-4xl font-bold">
+        Nexus <span class="text-purple-400">SmAll</span>
+        <span class="text-2xl text-gray-500 font-normal">v1</span>
+      </h1>
+      <p class="text-gray-500">89.8M parameter transformer — built from scratch</p>
     </div>
-    <span class="text-xs bg-gray-800 px-2 py-1 rounded-full text-gray-400">CPU</span>
-  </header>
 
-  <div id="chat" class="chat-container flex-1 overflow-y-auto p-4 space-y-4 max-w-2xl mx-auto w-full"></div>
+    <div class="bg-gray-900 rounded-2xl p-8 border border-gray-800 space-y-4">
+      <p class="text-sm text-gray-400">Click below to try the model live:</p>
+      <a href="https://try-nexus-ai.streamlit.app"
+         class="inline-block bg-purple-600 hover:bg-purple-500 text-white font-semibold px-8 py-3 rounded-xl transition-colors text-lg">
+        Open Chat →
+      </a>
+    </div>
 
-  <div class="border-t border-gray-800 p-4 max-w-2xl mx-auto w-full">
-    <form id="form" class="flex gap-2">
-      <input id="input" type="text" placeholder="Type a message..."
-        class="flex-1 bg-gray-800 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-purple-500/50 border border-gray-700 focus:border-purple-500"
-        autocomplete="off" />
-      <button type="submit" id="sendBtn"
-        class="bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl px-5 py-3 text-sm font-medium transition-colors">
-        Send
-      </button>
-    </form>
-    <p class="text-center text-[10px] text-gray-600 mt-2">Responses may be slow (CPU) and incoherent — it's tiny!</p>
+    <div class="grid grid-cols-2 gap-3 text-xs text-gray-600">
+      <div class="bg-gray-900 rounded-xl p-3 border border-gray-800">
+        <div class="font-medium text-gray-400">Architecture</div>
+        <div class="mt-1 space-y-0.5">
+          <div>10 layers · 768 hidden</div>
+          <div>GQA · SwiGLU · RoPE</div>
+        </div>
+      </div>
+      <div class="bg-gray-900 rounded-xl p-3 border border-gray-800">
+        <div class="font-medium text-gray-400">Training</div>
+        <div class="mt-1 space-y-0.5">
+          <div>100k steps WikiText-103</div>
+          <div>5k steps instruction FT</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="flex gap-2 justify-center text-xs">
+      <a href="https://github.com/JustScriptzz/nexus-smAll-web" class="text-gray-600 hover:text-gray-400">GitHub</a>
+      <span class="text-gray-700">·</span>
+      <a href="https://huggingface.co/JustScriptzz/nexus-smAll-v1" class="text-gray-600 hover:text-gray-400">HuggingFace</a>
+    </div>
   </div>
-
-<script>
-const API = 'YOUR_RAILWAY_URL'; // <-- CHANGE THIS
-const chat = document.getElementById('chat');
-const form = document.getElementById('form');
-const input = document.getElementById('input');
-const sendBtn = document.getElementById('sendBtn');
-let history = [];
-
-function addMsg(role, text) {
-  const div = document.createElement('div');
-  div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'}`;
-  const bubble = document.createElement('div');
-  bubble.className = `max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-    role === 'user' ? 'bg-purple-600 text-white rounded-br-md' : 'bg-gray-800 text-gray-200 rounded-bl-md'
-  }`;
-  bubble.textContent = text;
-  div.appendChild(bubble);
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-function showTyping() {
-  const div = document.createElement('div');
-  div.id = 'typing';
-  div.className = 'flex justify-start';
-  div.innerHTML = `<div class="bg-gray-800 rounded-2xl rounded-bl-md px-4 py-3 flex gap-1.5">
-    ${'<span class="typing-dot w-2 h-2 bg-gray-400 rounded-full inline-block"></span>'.repeat(3)}
-  </div>`;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
-}
-
-function hideTyping() {
-  const t = document.getElementById('typing');
-  if (t) t.remove();
-}
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const msg = input.value.trim();
-  if (!msg) return;
-
-  addMsg('user', msg);
-  input.value = '';
-  sendBtn.disabled = true;
-  showTyping();
-
-  try {
-    const res = await fetch(API + '/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, history: history }),
-    });
-    const data = await res.json();
-    hideTyping();
-    addMsg('assistant', data.response);
-    history.push({ role: 'user', content: msg });
-    history.push({ role: 'assistant', content: data.response });
-  } catch (err) {
-    hideTyping();
-    addMsg('assistant', '[Error: could not reach the model backend]');
-  }
-
-  sendBtn.disabled = false;
-  input.focus();
-});
-
-addMsg('assistant', 'Hello! I\'m Nexus SmAll v1, a tiny 89.8M parameter model trained from scratch. I may not always make sense, but ask me anything!');
-</script>
 </body>
 </html>

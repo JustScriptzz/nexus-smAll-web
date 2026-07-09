@@ -5,3 +5,5 @@ venv/
 .venv/
 .vscode/
 .idea/
+*.pt
+nexus_v2/merged/

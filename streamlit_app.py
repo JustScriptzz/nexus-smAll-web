@@ -2,15 +2,13 @@ import streamlit as st
 import torch
 import time
 
-from model import Nexus
-from config import NexusConfig
-from tokenizers import Tokenizer
-from huggingface_hub import hf_hub_download
+from huggingface_hub import hf_hub_download, InferenceClient
 
-REPO = "JustScriptzz/nexus-smAll-v1"
+REPO_SMALL = "JustScriptzz/nexus-smAll-v1"
+REPO_PLUS = "JustScriptzz/nexus-plus-v2"
 
 st.set_page_config(
-    page_title="Nexus SmAll v1",
+    page_title="Nexus AI",
     page_icon="⚡",
     layout="centered",
     initial_sidebar_state="collapsed",
@@ -122,17 +120,22 @@ header { visibility: hidden; }
 </style>
 """, unsafe_allow_html=True)
 
-# Header
 st.markdown("""
 <div style="text-align: center; padding: 20px 0 8px;">
     <h1 style="font-size: 28px; font-weight: 700; margin: 0;">
-        Nexus <span style="color: #a78bfa;">SmAll</span> <span style="color: #555; font-weight: 400; font-size: 18px;">v1</span>
+        Nexus <span style="color: #a78bfa;">AI</span>
     </h1>
-    <p style="color: #666; font-size: 13px; margin-top: 4px;">89.8M parameters · trained from scratch</p>
+    <p style="color: #666; font-size: 13px; margin-top: 4px;">Two models, one platform</p>
 </div>
 """, unsafe_allow_html=True)
 
-# Status bar
+model_choice = st.radio(
+    "Model",
+    ["SmAll v1", "Plus v2"],
+    horizontal=True,
+    label_visibility="collapsed",
+)
+
 if "generating" in st.session_state and st.session_state.generating:
     st.markdown("""
     <div class="status-bar">
@@ -148,59 +151,56 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-@st.cache_resource(show_spinner=False)
-def load_model():
-    device = torch.device("cpu")
-    config = NexusConfig()
-    model = Nexus(config)
+if model_choice == "SmAll v1":
+    from model import Nexus
+    from config import NexusConfig
+    from tokenizers import Tokenizer
 
-    weights_path = hf_hub_download(repo_id=REPO, filename="weights/nexus_instruct.pt")
-    checkpoint = torch.load(weights_path, map_location=device, weights_only=False)
-    model.load_state_dict(checkpoint["model_state_dict"])
+    @st.cache_resource(show_spinner=False)
+    def load_small_model():
+        device = torch.device("cpu")
+        config = NexusConfig()
+        model = Nexus(config)
+        weights_path = hf_hub_download(repo_id=REPO_SMALL, filename="weights/nexus_instruct.pt")
+        checkpoint = torch.load(weights_path, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
+        model.eval()
+        tokenizer_path = hf_hub_download(repo_id=REPO_SMALL, filename="data/tokenizer.json")
+        tokenizer = Tokenizer.from_file(tokenizer_path)
+        return model, tokenizer, config, device
 
-    model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
-    model.eval()
+    model, tokenizer, config, device = load_small_model()
+    bos_id = tokenizer.token_to_id("<bos>") or 1
+    eos_id = tokenizer.token_to_id("<eos>") or 2
+else:
+    config = None
 
-    tokenizer_path = hf_hub_download(repo_id=REPO, filename="data/tokenizer.json")
-    tokenizer = Tokenizer.from_file(tokenizer_path)
-
-    return model, tokenizer, config, device
-
-model, tokenizer, config, device = load_model()
-bos_id = tokenizer.token_to_id("<bos>") or 1
-eos_id = tokenizer.token_to_id("<eos>") or 2
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+session_key = f"messages_{model_choice.replace(' ', '_')}"
+if session_key not in st.session_state:
+    st.session_state[session_key] = []
 if "generating" not in st.session_state:
     st.session_state.generating = False
 
-for msg in st.session_state.messages:
+for msg in st.session_state[session_key]:
     st.chat_message(msg["role"]).write(msg["content"])
 
-if not st.session_state.messages:
+if not st.session_state[session_key]:
+    if model_choice == "SmAll v1":
+        welcome = "**Hello!** I'm Nexus SmAll v1 — a tiny 89.8M model built from scratch. Ask me anything (but keep expectations low 😄)"
+    else:
+        welcome = "**Hello!** I'm Nexus Plus v2 — a Qwen3-4B model fine-tuned with QLoRA. Smarter responses, deeper reasoning."
     with st.chat_message("assistant"):
-        st.markdown("**Hello!** I'm Nexus SmAll v1 — a tiny 89.8M model built from scratch. Ask me anything (but keep expectations low 😄)")
+        st.markdown(welcome)
 
 if prompt := st.chat_input("Type a message..."):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    st.session_state[session_key].append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
-
     st.session_state.generating = True
     st.rerun()
 
-if st.session_state.generating and st.session_state.messages:
-    last_user_msg = st.session_state.messages[-1]["content"]
-
-    tokens = [bos_id]
-    for msg in st.session_state.messages[:-1]:
-        if msg["role"] == "user":
-            tokens.extend(tokenizer.encode(f"User: {msg['content']}\nAssistant:").ids)
-        elif msg["role"] == "assistant":
-            tokens.extend(tokenizer.encode(f" {msg['content']}").ids + [eos_id])
-    tokens.extend(tokenizer.encode(f"User: {last_user_msg}\nAssistant:").ids)
-
-    input_tensor = torch.tensor([tokens[-config.max_seq_len:]], dtype=torch.long, device=device)
+if st.session_state.generating and st.session_state[session_key]:
+    last_user_msg = st.session_state[session_key][-1]["content"]
 
     with st.chat_message("assistant"):
         typing_placeholder = st.empty()
@@ -214,36 +214,71 @@ if st.session_state.generating and st.session_state.messages:
 
         start_time = time.time()
 
-        with torch.no_grad():
-            for _ in range(128):
-                seq_len = input_tensor.shape[1]
-                if seq_len > config.max_seq_len:
-                    input_tensor = input_tensor[:, -config.max_seq_len:]
+        if model_choice == "SmAll v1":
+            tokens = [bos_id]
+            for msg in st.session_state[session_key][:-1]:
+                if msg["role"] == "user":
+                    tokens.extend(tokenizer.encode(f"User: {msg['content']}\nAssistant:").ids)
+                elif msg["role"] == "assistant":
+                    tokens.extend(tokenizer.encode(f" {msg['content']}").ids + [eos_id])
+            tokens.extend(tokenizer.encode(f"User: {last_user_msg}\nAssistant:").ids)
 
-                logits = model(input_tensor, 0)
-                logits = logits[:, -1, :] / 0.2
-                probs = torch.softmax(logits, dim=-1)
-                next_token = torch.multinomial(probs, num_samples=1)
-                input_tensor = torch.cat([input_tensor, next_token], dim=-1)
+            input_tensor = torch.tensor([tokens[-config.max_seq_len:]], dtype=torch.long, device=device)
 
-                if next_token.item() == eos_id:
-                    break
+            with torch.no_grad():
+                for _ in range(128):
+                    seq_len = input_tensor.shape[1]
+                    if seq_len > config.max_seq_len:
+                        input_tensor = input_tensor[:, -config.max_seq_len:]
+                    logits = model(input_tensor, 0)
+                    logits = logits[:, -1, :] / 0.2
+                    probs = torch.softmax(logits, dim=-1)
+                    next_token = torch.multinomial(probs, num_samples=1)
+                    input_tensor = torch.cat([input_tensor, next_token], dim=-1)
+                    if next_token.item() == eos_id:
+                        break
 
-        elapsed = time.time() - start_time
+            elapsed = time.time() - start_time
+            new_ids = input_tensor[0].tolist()[len(tokens):]
+            response = tokenizer.decode(new_ids)
+            for tok in ["<|assistant|>", "<|user|>", "<|system|>"]:
+                response = response.replace(tok, "")
+            response = response.split("<eos>")[0].split("User:")[0].replace("Assistant:", "").strip()
+            if len(response) < 2:
+                response = "..."
+            token_info = f"⚡ {elapsed:.1f}s · {len(new_ids)} tokens · ~{len(new_ids)/elapsed:.1f} tok/s"
+        else:
+            client = InferenceClient(token=st.secrets.get("HF_TOKEN", None))
 
-        new_ids = input_tensor[0].tolist()[len(tokens):]
-        response = tokenizer.decode(new_ids)
-        for tok in ["<|assistant|>", "<|user|>", "<|system|>"]:
-            response = response.replace(tok, "")
-        response = response.split("<eos>")[0].split("User:")[0].replace("Assistant:", "").strip()
+            messages = []
+            for msg in st.session_state[session_key][:-1]:
+                messages.append({"role": msg["role"], "content": msg["content"]})
+            messages.append({"role": "user", "content": last_user_msg})
 
-        if len(response) < 2:
-            response = "..."
+            try:
+                response = ""
+                for token in client.chat_completion(
+                    model="JustScriptzz/nexus-plus-v2",
+                    messages=messages,
+                    max_tokens=512,
+                    temperature=0.7,
+                    top_p=0.8,
+                    stream=True,
+                ):
+                    if token.choices[0].delta.content:
+                        response += token.choices[0].delta.content
+                elapsed = time.time() - start_time
+                token_count = len(response.split())
+                token_info = f"⚡ {elapsed:.1f}s · ~{token_count} tokens"
+            except Exception as e:
+                response = f"Error: {str(e)}"
+                elapsed = time.time() - start_time
+                token_info = f"❌ {elapsed:.1f}s"
 
         typing_placeholder.empty()
         st.markdown(response)
-        st.caption(f"⚡ {elapsed:.1f}s · {len(new_ids)} tokens · ~{len(new_ids)/elapsed:.1f} tok/s")
+        st.caption(token_info)
 
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    st.session_state[session_key].append({"role": "assistant", "content": response})
     st.session_state.generating = False
     st.rerun()
