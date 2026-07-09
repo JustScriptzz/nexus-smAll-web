@@ -1,11 +1,8 @@
 import streamlit as st
 import torch
-import os, sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "api"))
-
-from src.model import Nexus
-from src.config import NexusConfig
+from model import Nexus
+from config import NexusConfig
 from tokenizers import Tokenizer
 from huggingface_hub import hf_hub_download
 
