@@ -1,5 +1,6 @@
 import streamlit as st
 import torch
+import time
 
 from model import Nexus
 from config import NexusConfig
@@ -10,27 +11,144 @@ REPO = "JustScriptzz/nexus-smAll-v1"
 
 st.set_page_config(
     page_title="Nexus SmAll v1",
-    page_icon="🧠",
+    page_icon="⚡",
     layout="centered",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown("""
 <style>
-.stApp { background-color: #0f1117; color: #e1e1e1; }
-.stChatInput textarea { background-color: #1e1e2e !important; color: #fff !important; border-color: #3a3a5c !important; }
-.stChatMessage { background-color: #1a1a2e !important; border: 1px solid #2a2a4a !important; }
-[data-testid="stChatMessageContent"] p { color: #e1e1e1 !important; }
-.user-avatar { background-color: #7c3aed; }
-.assistant-avatar { background-color: #1e1e3a; }
-footer {visibility: hidden;}
-header {visibility: hidden;}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.stApp {
+    background-color: #0a0a0f;
+    color: #e1e1e6;
+    font-family: 'Inter', sans-serif;
+}
+
+[data-testid="stHeader"] { background: transparent; }
+[data-testid="stToolbar"] { display: none; }
+
+div[data-testid="stChatMessage"] {
+    border-radius: 16px;
+    padding: 12px 16px;
+    margin: 8px 0;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+div[data-testid="stChatMessage"][aria-label="user"] {
+    background: linear-gradient(135deg, #7c3aed22, #6d28d922);
+    border-color: #7c3aed33;
+}
+
+div[data-testid="stChatMessage"][aria-label="assistant"] {
+    background: rgba(255,255,255,0.03);
+}
+
+[data-testid="stChatMessageContent"] p {
+    color: #e1e1e6 !important;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+div[data-testid="stChatInput"] {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+}
+
+div[data-testid="stChatInput"] textarea {
+    background: #111118 !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 16px !important;
+    font-size: 15px;
+}
+
+div[data-testid="stChatInput"] textarea:focus {
+    box-shadow: 0 0 0 2px #7c3aed44;
+}
+
+footer { visibility: hidden; }
+header { visibility: hidden; }
+
+.typing-indicator {
+    display: inline-flex;
+    gap: 4px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    margin: 8px 0;
+}
+.typing-dot {
+    width: 7px; height: 7px;
+    background: #7c3aed;
+    border-radius: 50%;
+    animation: bounce 1.4s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.16s; }
+.typing-dot:nth-child(3) { animation-delay: 0.32s; }
+@keyframes bounce {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+    30% { transform: translateY(-6px); opacity: 1; }
+}
+
+.status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 20px;
+    font-size: 12px;
+    color: #888;
+    width: fit-content;
+    margin: 0 auto 12px;
+}
+.status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+}
+.status-dot.loading {
+    background: #eab308;
+    animation: pulse 1s infinite;
+}
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
 </style>
 """, unsafe_allow_html=True)
 
-st.title("Nexus SmAll v1")
-st.caption("89.8M parameter transformer — built from scratch")
+# Header
+st.markdown("""
+<div style="text-align: center; padding: 20px 0 8px;">
+    <h1 style="font-size: 28px; font-weight: 700; margin: 0;">
+        Nexus <span style="color: #a78bfa;">SmAll</span> <span style="color: #555; font-weight: 400; font-size: 18px;">v1</span>
+    </h1>
+    <p style="color: #666; font-size: 13px; margin-top: 4px;">89.8M parameters · trained from scratch</p>
+</div>
+""", unsafe_allow_html=True)
 
-@st.cache_resource(show_spinner="Loading Nexus SmAll v1...")
+# Status bar
+if "generating" in st.session_state and st.session_state.generating:
+    st.markdown("""
+    <div class="status-bar">
+        <div class="status-dot loading"></div>
+        <span>Generating...</span>
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.markdown("""
+    <div class="status-bar">
+        <div class="status-dot"></div>
+        <span>Ready</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+@st.cache_resource(show_spinner=False)
 def load_model():
     device = torch.device("cpu")
     config = NexusConfig()
@@ -51,14 +169,26 @@ bos_id = tokenizer.token_to_id("<bos>") or 1
 eos_id = tokenizer.token_to_id("<eos>") or 2
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Hello! I'm Nexus SmAll v1, a tiny 89.8M model trained from scratch. I might not always make sense, but ask me anything!"}]
+    st.session_state.messages = []
+if "generating" not in st.session_state:
+    st.session_state.generating = False
 
 for msg in st.session_state.messages:
     st.chat_message(msg["role"]).write(msg["content"])
 
+if not st.session_state.messages:
+    with st.chat_message("assistant"):
+        st.markdown("**Hello!** I'm Nexus SmAll v1 — a tiny 89.8M model built from scratch. Ask me anything (but keep expectations low 😄)")
+
 if prompt := st.chat_input("Type a message..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
+
+    st.session_state.generating = True
+    st.rerun()
+
+if st.session_state.generating and st.session_state.messages:
+    last_user_msg = st.session_state.messages[-1]["content"]
 
     tokens = [bos_id]
     for msg in st.session_state.messages[:-1]:
@@ -66,34 +196,52 @@ if prompt := st.chat_input("Type a message..."):
             tokens.extend(tokenizer.encode(f"User: {msg['content']}\nAssistant:").ids)
         elif msg["role"] == "assistant":
             tokens.extend(tokenizer.encode(f" {msg['content']}").ids + [eos_id])
-
-    tokens.extend(tokenizer.encode(f"User: {prompt}\nAssistant:").ids)
+    tokens.extend(tokenizer.encode(f"User: {last_user_msg}\nAssistant:").ids)
 
     input_tensor = torch.tensor([tokens[-config.max_seq_len:]], dtype=torch.long, device=device)
 
-    with torch.no_grad():
-        for _ in range(128):
-            seq_len = input_tensor.shape[1]
-            if seq_len > config.max_seq_len:
-                input_tensor = input_tensor[:, -config.max_seq_len:]
+    with st.chat_message("assistant"):
+        typing_placeholder = st.empty()
+        typing_placeholder.markdown("""
+        <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+        </div>
+        """, unsafe_allow_html=True)
 
-            logits = model(input_tensor, 0)
-            logits = logits[:, -1, :] / 0.2
-            probs = torch.softmax(logits, dim=-1)
-            next_token = torch.multinomial(probs, num_samples=1)
-            input_tensor = torch.cat([input_tensor, next_token], dim=-1)
+        start_time = time.time()
 
-            if next_token.item() == eos_id:
-                break
+        with torch.no_grad():
+            for _ in range(128):
+                seq_len = input_tensor.shape[1]
+                if seq_len > config.max_seq_len:
+                    input_tensor = input_tensor[:, -config.max_seq_len:]
 
-    new_ids = input_tensor[0].tolist()[len(tokens):]
-    response = tokenizer.decode(new_ids)
-    for tok in ["<|assistant|>", "<|user|>", "<|system|>"]:
-        response = response.replace(tok, "")
-    response = response.split("<eos>")[0].split("User:")[0].replace("Assistant:", "").strip()
+                logits = model(input_tensor, 0)
+                logits = logits[:, -1, :] / 0.2
+                probs = torch.softmax(logits, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1)
+                input_tensor = torch.cat([input_tensor, next_token], dim=-1)
 
-    if len(response) < 2:
-        response = "..."
+                if next_token.item() == eos_id:
+                    break
+
+        elapsed = time.time() - start_time
+
+        new_ids = input_tensor[0].tolist()[len(tokens):]
+        response = tokenizer.decode(new_ids)
+        for tok in ["<|assistant|>", "<|user|>", "<|system|>"]:
+            response = response.replace(tok, "")
+        response = response.split("<eos>")[0].split("User:")[0].replace("Assistant:", "").strip()
+
+        if len(response) < 2:
+            response = "..."
+
+        typing_placeholder.empty()
+        st.markdown(response)
+        st.caption(f"⚡ {elapsed:.1f}s · {len(new_ids)} tokens · ~{len(new_ids)/elapsed:.1f} tok/s")
 
     st.session_state.messages.append({"role": "assistant", "content": response})
-    st.chat_message("assistant").write(response)
+    st.session_state.generating = False
+    st.rerun()
