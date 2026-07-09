@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import math
 from typing import Optional
-from config import NexusConfig
+from src.config import NexusConfig
 
 class RMSNorm(nn.Module):
     def __init__(self, dim: int, eps: float = 1e-6):
