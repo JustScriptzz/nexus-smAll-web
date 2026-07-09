@@ -1,7 +1,6 @@
 import streamlit as st
 import torch
 import time
-import datetime
 
 from huggingface_hub import hf_hub_download, InferenceClient
 
@@ -12,7 +11,7 @@ st.set_page_config(
     page_title="Nexus AI",
     page_icon="⚡",
     layout="centered",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 st.markdown("""
@@ -118,62 +117,8 @@ header { visibility: hidden; }
     0%, 100% { opacity: 1; }
     50% { opacity: 0.3; }
 }
-
-.log-entry {
-    padding: 4px 0;
-    font-size: 12px;
-    font-family: 'JetBrains Mono', 'Fira Code', monospace;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
-    line-height: 1.4;
-}
-.log-time { color: #555; }
-.log-info { color: #a78bfa; }
-.log-ok { color: #22c55e; }
-.log-warn { color: #eab308; }
-.log-err { color: #ef4444; }
-.log-dim { color: #444; }
 </style>
 """, unsafe_allow_html=True)
-
-if "logs" not in st.session_state:
-    st.session_state.logs = []
-if "log_id" not in st.session_state:
-    st.session_state.log_id = 0
-
-def log(msg, level="info"):
-    st.session_state.log_id += 1
-    ts = datetime.datetime.now().strftime("%H:%M:%S")
-    st.session_state.logs.append({
-        "id": st.session_state.log_id,
-        "time": ts,
-        "msg": msg,
-        "level": level,
-    })
-    if len(st.session_state.logs) > 100:
-        st.session_state.logs = st.session_state.logs[-100:]
-
-with st.sidebar:
-    st.markdown("### Logs")
-    auto_refresh = st.checkbox("Auto-refresh", value=True, key="auto_refresh_logs")
-    if st.button("Clear logs"):
-        st.session_state.logs = []
-        st.rerun()
-    st.markdown("---")
-
-    if not st.session_state.logs:
-        st.caption("No activity yet")
-    else:
-        html = ""
-        for entry in reversed(st.session_state.logs):
-            cls = f"log-{entry['level']}"
-            html += f'<div class="log-entry"><span class="log-time">[{entry["time"]}]</span> <span class="{cls}">{entry["msg"]}</span></div>'
-        st.markdown(html, unsafe_allow_html=True)
-
-    if auto_refresh:
-        time.sleep(2)
-        st.rerun()
-
-log("App started", "info")
 
 st.markdown("""
 <div style="text-align: center; padding: 20px 0 8px;">
@@ -190,8 +135,6 @@ model_choice = st.radio(
     horizontal=True,
     label_visibility="collapsed",
 )
-
-log(f"Selected model: {model_choice}", "info")
 
 if "generating" in st.session_state and st.session_state.generating:
     st.markdown("""
@@ -215,30 +158,23 @@ if model_choice == "SmAll v1":
 
     @st.cache_resource(show_spinner=False)
     def load_small_model():
-        log("Loading NexusConfig...", "info")
-        _config = NexusConfig()
-        log("Initializing Nexus model (89.8M params)...", "info")
-        _model = Nexus(_config)
-        log("Downloading weights from HF...", "info")
+        device = torch.device("cpu")
+        config = NexusConfig()
+        model = Nexus(config)
         weights_path = hf_hub_download(repo_id=REPO_SMALL, filename="weights/nexus_instruct.pt")
-        log("Loading checkpoint...", "info")
-        checkpoint = torch.load(weights_path, map_location=torch.device("cpu"), weights_only=False)
-        _model.load_state_dict(checkpoint["model_state_dict"])
-        log("Quantizing to int8...", "info")
-        _model = torch.quantization.quantize_dynamic(_model, {torch.nn.Linear}, dtype=torch.qint8)
-        _model.eval()
-        log("Loading tokenizer...", "info")
+        checkpoint = torch.load(weights_path, map_location=device, weights_only=False)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
+        model.eval()
         tokenizer_path = hf_hub_download(repo_id=REPO_SMALL, filename="data/tokenizer.json")
-        _tokenizer = Tokenizer.from_file(tokenizer_path)
-        log("SmAll v1 ready", "ok")
-        return _model, _tokenizer, _config, torch.device("cpu")
+        tokenizer = Tokenizer.from_file(tokenizer_path)
+        return model, tokenizer, config, device
 
     model, tokenizer, config, device = load_small_model()
     bos_id = tokenizer.token_to_id("<bos>") or 1
     eos_id = tokenizer.token_to_id("<eos>") or 2
 else:
     config = None
-    log("Plus v2: using HF Inference API", "info")
 
 session_key = f"messages_{model_choice.replace(' ', '_')}"
 if session_key not in st.session_state:
@@ -260,7 +196,6 @@ if not st.session_state[session_key]:
 if prompt := st.chat_input("Type a message..."):
     st.session_state[session_key].append({"role": "user", "content": prompt})
     st.chat_message("user").write(prompt)
-    log(f"User: {prompt[:80]}{'...' if len(prompt)>80 else ''}", "info")
     st.session_state.generating = True
     st.rerun()
 
@@ -280,7 +215,6 @@ if st.session_state.generating and st.session_state[session_key]:
         start_time = time.time()
 
         if model_choice == "SmAll v1":
-            log("Encoding input tokens...", "info")
             tokens = [bos_id]
             for msg in st.session_state[session_key][:-1]:
                 if msg["role"] == "user":
@@ -288,14 +222,11 @@ if st.session_state.generating and st.session_state[session_key]:
                 elif msg["role"] == "assistant":
                     tokens.extend(tokenizer.encode(f" {msg['content']}").ids + [eos_id])
             tokens.extend(tokenizer.encode(f"User: {last_user_msg}\nAssistant:").ids)
-            log(f"Input: {len(tokens)} tokens", "dim")
 
             input_tensor = torch.tensor([tokens[-config.max_seq_len:]], dtype=torch.long, device=device)
 
-            log("Generating (max 128 tokens)...", "info")
-            gen_start = time.time()
             with torch.no_grad():
-                for i in range(128):
+                for _ in range(128):
                     seq_len = input_tensor.shape[1]
                     if seq_len > config.max_seq_len:
                         input_tensor = input_tensor[:, -config.max_seq_len:]
@@ -305,7 +236,6 @@ if st.session_state.generating and st.session_state[session_key]:
                     next_token = torch.multinomial(probs, num_samples=1)
                     input_tensor = torch.cat([input_tensor, next_token], dim=-1)
                     if next_token.item() == eos_id:
-                        log(f"EOS at token {i+1}", "dim")
                         break
 
             elapsed = time.time() - start_time
@@ -316,9 +246,7 @@ if st.session_state.generating and st.session_state[session_key]:
             response = response.split("<eos>")[0].split("User:")[0].replace("Assistant:", "").strip()
             if len(response) < 2:
                 response = "..."
-            tok_speed = len(new_ids)/elapsed if elapsed > 0 else 0
-            token_info = f"⚡ {elapsed:.1f}s · {len(new_ids)} tokens · ~{tok_speed:.1f} tok/s"
-            log(f"Done: {len(new_ids)} tokens in {elapsed:.1f}s ({tok_speed:.1f} tok/s)", "ok")
+            token_info = f"⚡ {elapsed:.1f}s · {len(new_ids)} tokens · ~{len(new_ids)/elapsed:.1f} tok/s"
         else:
             client = InferenceClient(token=st.secrets.get("HF_TOKEN", None))
 
@@ -327,7 +255,6 @@ if st.session_state.generating and st.session_state[session_key]:
                 messages.append({"role": msg["role"], "content": msg["content"]})
             messages.append({"role": "user", "content": last_user_msg})
 
-            log(f"Calling HF Inference API (stream)...", "info")
             try:
                 response = ""
                 for token in client.chat_completion(
@@ -343,12 +270,10 @@ if st.session_state.generating and st.session_state[session_key]:
                 elapsed = time.time() - start_time
                 token_count = len(response.split())
                 token_info = f"⚡ {elapsed:.1f}s · ~{token_count} tokens"
-                log(f"Done: ~{token_count} tokens in {elapsed:.1f}s", "ok")
             except Exception as e:
                 response = f"Error: {str(e)}"
                 elapsed = time.time() - start_time
                 token_info = f"❌ {elapsed:.1f}s"
-                log(f"Error: {str(e)[:100]}", "err")
 
         typing_placeholder.empty()
         st.markdown(response)
