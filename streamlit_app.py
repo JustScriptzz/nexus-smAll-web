@@ -257,16 +257,15 @@ if st.session_state.generating and st.session_state[session_key]:
 
             try:
                 response = ""
-                for token in client.chat_completion(
+                for token in client.text_generation(
                     model="JustScriptzz/nexus-plus-v2",
-                    messages=messages,
-                    max_tokens=512,
+                    prompt=last_user_msg,
+                    max_new_tokens=512,
                     temperature=0.7,
                     top_p=0.8,
                     stream=True,
                 ):
-                    if token.choices[0].delta.content:
-                        response += token.choices[0].delta.content
+                    response += token
                 elapsed = time.time() - start_time
                 token_count = len(response.split())
                 token_info = f"⚡ {elapsed:.1f}s · ~{token_count} tokens"
