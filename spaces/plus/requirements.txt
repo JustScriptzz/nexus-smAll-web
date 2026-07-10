@@ -1,0 +1,7 @@
+gradio
+torch
+transformers
+bitsandbytes
+accelerate
+huggingface_hub
+peft

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexus SmAll v1</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+* { font-family: 'Inter', sans-serif; }
+body { background: #0a0a0f; }
+.chat-box { height: 70vh; overflow-y: auto; }
+.msg-user { background: linear-gradient(135deg, #7c3aed22, #6d28d922); border: 1px solid #7c3aed33; border-radius: 16px; padding: 12px 16px; margin: 8px 0; max-width: 80%; margin-left: auto; }
+.msg-bot { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 12px 16px; margin: 8px 0; max-width: 80%; }
+.typing { display: inline-flex; gap: 4px; padding: 8px 14px; background: rgba(255,255,255,0.04); border-radius: 12px; }
+.typing span { width: 7px; height: 7px; background: #7c3aed; border-radius: 50%; animation: bounce 1.4s infinite; }
+.typing span:nth-child(2) { animation-delay: 0.16s; }
+.typing span:nth-child(3) { animation-delay: 0.32s; }
+@keyframes bounce { 0%,60%,100%{transform:translateY(0);opacity:0.4} 30%{transform:translateY(-6px);opacity:1} }
+input[type="text"] { background: #111118; border: 1px solid rgba(255,255,255,0.1); color: #fff; border-radius: 16px; padding: 12px 16px; width: 80%; font-size: 15px; outline: none; }
+input[type="text"]:focus { box-shadow: 0 0 0 2px #7c3aed44; }
+button { background: #7c3aed; color: #fff; border: none; border-radius: 16px; padding: 12px 24px; font-weight: 600; cursor: pointer; }
+button:hover { background: #6d28d9; }
+</style>
+</head>
+<body class="text-gray-100 min-h-screen flex flex-col items-center p-4">
+  <div class="max-w-lg w-full space-y-4">
+    <div class="text-center space-y-2 pt-4">
+      <h1 class="text-3xl font-bold">Nexus <span class="text-purple-400">SmAll</span> <span class="text-xl text-gray-500 font-normal">v1</span></h1>
+      <p class="text-gray-500 text-sm">89.8M parameter transformer — built from scratch</p>
+      <p class="text-gray-600 text-xs">Custom model — runs on Streamlit Cloud</p>
+    </div>
+    <div class="bg-gray-900 rounded-2xl border border-gray-800 p-6 text-center space-y-4">
+      <p class="text-sm text-gray-400">This model uses a custom architecture and runs on Streamlit.</p>
+      <a href="https://try-nexus-ai.streamlit.app" target="_blank"
+         class="inline-block bg-purple-600 hover:bg-purple-500 text-white font-semibold px-8 py-3 rounded-xl transition-colors text-lg">
+        Open Chat on Streamlit →
+      </a>
+    </div>
+    <div class="flex gap-2 justify-center text-xs">
+      <a href="https://github.com/JustScriptzz/nexus-smAll-web" class="text-gray-600 hover:text-gray-400">GitHub</a>
+      <span class="text-gray-700">·</span>
+      <a href="https://huggingface.co/JustScriptzz/nexus-smAll-v1" class="text-gray-600 hover:text-gray-400">HuggingFace</a>
+      <span class="text-gray-700">·</span>
+      <a href="https://justscriptzz-nexus-plus-v2-chat.hf.space" class="text-gray-600 hover:text-gray-400">Plus v2 Chat</a>
+    </div>
+  </div>
+</body>
+</html>

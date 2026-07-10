@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nexus SmAll v1</title>
+<title>Nexus AI</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
@@ -14,33 +14,47 @@
   <div class="max-w-lg text-center space-y-6">
     <div class="space-y-2">
       <h1 class="text-4xl font-bold">
-        Nexus <span class="text-purple-400">SmAll</span>
-        <span class="text-2xl text-gray-500 font-normal">v1</span>
+        Nexus <span class="text-purple-400">AI</span>
       </h1>
-      <p class="text-gray-500">89.8M parameter transformer — built from scratch</p>
+      <p class="text-gray-500">Two models, one platform</p>
     </div>
 
-    <div class="bg-gray-900 rounded-2xl p-8 border border-gray-800 space-y-4">
-      <p class="text-sm text-gray-400">Click below to try the model live:</p>
-      <a href="https://try-nexus-ai.streamlit.app"
-         class="inline-block bg-purple-600 hover:bg-purple-500 text-white font-semibold px-8 py-3 rounded-xl transition-colors text-lg">
-        Open Chat →
-      </a>
-    </div>
-
-    <div class="grid grid-cols-2 gap-3 text-xs text-gray-600">
-      <div class="bg-gray-900 rounded-xl p-3 border border-gray-800">
-        <div class="font-medium text-gray-400">Architecture</div>
-        <div class="mt-1 space-y-0.5">
-          <div>10 layers · 768 hidden</div>
-          <div>GQA · SwiGLU · RoPE</div>
+    <div class="grid grid-cols-1 gap-4">
+      <!-- SmAll v1 -->
+      <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">SmAll <span class="text-gray-500 font-normal">v1</span></h2>
+          <span class="text-xs text-purple-400 bg-purple-400/10 px-2 py-1 rounded-full">89.8M</span>
+        </div>
+        <p class="text-sm text-gray-400">Custom transformer built from scratch. Trained on WikiText-103 + instruction data.</p>
+        <div class="flex gap-3">
+          <a href="https://justscriptzz-nexus-smAll-v1-chat.hf.space" target="_blank"
+             class="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors text-sm">
+            Open Chat →
+          </a>
+          <a href="https://huggingface.co/JustScriptzz/nexus-smAll-v1" target="_blank"
+             class="text-gray-500 hover:text-gray-300 text-sm px-3 py-2.5 border border-gray-700 rounded-xl transition-colors">
+            HF
+          </a>
         </div>
       </div>
-      <div class="bg-gray-900 rounded-xl p-3 border border-gray-800">
-        <div class="font-medium text-gray-400">Training</div>
-        <div class="mt-1 space-y-0.5">
-          <div>100k steps WikiText-103</div>
-          <div>5k steps instruction FT</div>
+
+      <!-- Plus v2 -->
+      <div class="bg-gray-900 rounded-2xl p-6 border border-gray-800 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-semibold">Plus <span class="text-gray-500 font-normal">v2</span></h2>
+          <span class="text-xs text-purple-400 bg-purple-400/10 px-2 py-1 rounded-full">4B</span>
+        </div>
+        <p class="text-sm text-gray-400">Qwen3-4B fine-tuned with QLoRA. Smarter responses, deeper reasoning.</p>
+        <div class="flex gap-3">
+          <a href="https://justscriptzz-nexus-plus-v2-chat.hf.space" target="_blank"
+             class="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors text-sm">
+            Open Chat →
+          </a>
+          <a href="https://huggingface.co/JustScriptzz/nexus-plus-v2" target="_blank"
+             class="text-gray-500 hover:text-gray-300 text-sm px-3 py-2.5 border border-gray-700 rounded-xl transition-colors">
+            HF
+          </a>
         </div>
       </div>
     </div>
@@ -48,7 +62,7 @@
     <div class="flex gap-2 justify-center text-xs">
       <a href="https://github.com/JustScriptzz/nexus-smAll-web" class="text-gray-600 hover:text-gray-400">GitHub</a>
       <span class="text-gray-700">·</span>
-      <a href="https://huggingface.co/JustScriptzz/nexus-smAll-v1" class="text-gray-600 hover:text-gray-400">HuggingFace</a>
+      <a href="https://github.com/JustScriptzz/nexus-smAll-v1" class="text-gray-600 hover:text-gray-400">Model Code</a>
     </div>
   </div>
 </body>
