@@ -5,7 +5,7 @@ import time
 from huggingface_hub import hf_hub_download, InferenceClient
 
 REPO_SMALL = "JustScriptzz/nexus-smAll-v1"
-REPO_PLUS = "JustScriptzz/nexus-plus-v2"
+REPO_PLUS = "Qwen/Qwen3-4B"
 
 st.set_page_config(
     page_title="Nexus AI",
@@ -189,7 +189,7 @@ if not st.session_state[session_key]:
     if model_choice == "SmAll v1":
         welcome = "**Hello!** I'm Nexus SmAll v1 — a tiny 89.8M model built from scratch. Ask me anything (but keep expectations low 😄)"
     else:
-        welcome = "**Hello!** I'm Nexus Plus v2 — a Qwen3-4B model fine-tuned with QLoRA. Smarter responses, deeper reasoning."
+        welcome = "**Hello!** I'm Nexus Plus v2 — powered by Qwen3-4B. Smarter responses, deeper reasoning."
     with st.chat_message("assistant"):
         st.markdown(welcome)
 
@@ -257,15 +257,16 @@ if st.session_state.generating and st.session_state[session_key]:
 
             try:
                 response = ""
-                for token in client.text_generation(
-                    model="JustScriptzz/nexus-plus-v2",
-                    prompt=last_user_msg,
-                    max_new_tokens=512,
+                for token in client.chat_completion(
+                    model="Qwen/Qwen3-4B",
+                    messages=messages,
+                    max_tokens=512,
                     temperature=0.7,
                     top_p=0.8,
                     stream=True,
                 ):
-                    response += token
+                    if token.choices[0].delta.content:
+                        response += token.choices[0].delta.content
                 elapsed = time.time() - start_time
                 token_count = len(response.split())
                 token_info = f"⚡ {elapsed:.1f}s · ~{token_count} tokens"
